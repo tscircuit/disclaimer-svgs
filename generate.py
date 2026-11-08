@@ -16,6 +16,7 @@ from shapely.ops import unary_union
 
 ROOT = Path(__file__).resolve().parent
 NOTICES = ("DEVELOPMENT USE ONLY", "NOT FCC APPROVED", "NOT FOR RESALE")
+CONTROL = "Control: motorcontrol.tscircuit.com"
 EDGE_CLEARANCE = 0.45
 FEATURE_CLEARANCE = 0.25
 
@@ -40,7 +41,7 @@ class Lettering:
         self.glyphs[self.cmap[ord("H")]].draw(h)
         self.cap = h.bounds[3]
 
-    def run(self, message, y, height, maximum, tracking=0.052):
+    def run(self, message, y, height, maximum, tracking=0.052, knockout=False):
         names = [self.cmap[ord(c)] for c in message]
         offset = 0
         bounds = BoundsPen(self.glyphs)
@@ -59,19 +60,34 @@ class Lettering:
                 -y + (bottom + top) / 2 * scale,
             )))
         w, h = (right - left) * scale, (top - bottom) * scale
-        return path(pen.getCommands(), message), box(-w / 2, y - h / 2, w / 2, y + h / 2)
+        bounds = box(-w / 2, y - h / 2, w / 2, y + h / 2)
+        letters = pen.getCommands()
+        if knockout:
+            pad = max(.17, height * .11)
+            badge = box(-w / 2 - 2 * pad, y - h / 2 - pad / 2,
+                        w / 2 + 2 * pad, y + h / 2 + pad / 2)
+            badge = badge.buffer(pad / 2, quad_segs=6)
+            return (f'<path aria-label="{escape(message)}" fill-rule="evenodd" '
+                    f'd="{polygon_path(badge)} {letters}"/>'), badge
+        return path(letters, message), bounds
 
 def translate(item, x):
     svg, bounds = item
     return f'<g transform="translate({mm(x)} 0)">{svg}</g>', move(bounds, xoff=x)
 
 def logo(brand_asset, y, width):
-    vb, paths = brand_asset
+    vb, outline = brand_asset
     w, h = vb[2:]
     scale = width / w
     height = h * scale
     transform = f"translate({mm(width / 2)} {mm(-y - height / 2)}) scale({-scale:.9f} {scale:.9f})"
-    svg = f'<g aria-label="tscircuit logo" transform="{transform}" fill-rule="evenodd">{paths}</g>'
+    # The source artwork is mirrored. Put the cutout at source upper-right
+    # so it reads at upper-left after the exterior-facing transform.
+    cx, cy, radius = .82 * w, .18 * h, .068 * w
+    dot = (f"M{mm(cx-radius)} {mm(cy)} a{mm(radius)} {mm(radius)} 0 1 0 {mm(2*radius)} 0 "
+           f"a{mm(radius)} {mm(radius)} 0 1 0 {mm(-2*radius)} 0 Z")
+    svg = (f'<path aria-label="tscircuit logo" transform="{transform}" '
+           f'fill-rule="evenodd" d="{outline} {dot}"/>')
     return svg, box(-width / 2, y - height / 2, width / 2, y + height / 2)
 
 def hazard(y, size):
@@ -97,7 +113,7 @@ def composition(board, lettering, brand_asset):
     x, width = settings["center"], settings["width"]
     marks = []
     for name, (px, y, h, *angles) in board["labels"].items():
-        label = translate(lettering.run(name, y, h, 7.8, .10), px)
+        label = translate(lettering.run(name, y, h, 7.8, .10, knockout=True), px)
         if angles:
             svg, bounds = label
             angle = angles[0]
@@ -115,11 +131,15 @@ def composition(board, lettering, brand_asset):
     y, h = settings["hazard"]
     marks.extend(pair(hazard(y, h * 1.22), lettering.run("DANGEROUS", y, h, width - h * 2), x, h * .36))
     marks.append(translate(lettering.run("USE AT YOUR OWN RISK", *settings["risk"], width, .054), x))
-    divider_y = settings["divider"]
-    line = box(x - width * .40, divider_y - .10, x + width * .40, divider_y + .10)
-    marks.append((path(polygon_path(line), "Divider"), line))
+    if "divider" in settings:
+        divider_y = settings["divider"]
+        line = box(x - width * .40, divider_y - .10, x + width * .40, divider_y + .10)
+        marks.append((path(polygon_path(line), "Divider"), line))
     marks.extend(translate(lettering.run(message, y, h, width), x)
                  for message, (y, h) in zip(NOTICES, settings["notices"]))
+    control_y, control_height, *control_width = settings["control"]
+    marks.append(translate(lettering.run(CONTROL, control_y, control_height,
+                                         control_width[0] if control_width else width, .015), x))
     return marks
 
 def export(slug, board, lettering, brand_asset):
@@ -170,8 +190,8 @@ def main():
     args = parser.parse_args()
     font = Lettering(args.font)
     logo_xml = ET.parse(ROOT / "logo.svg").getroot()
-    paths = "".join(f'<path d="{p.attrib["d"]}"/>' for p in logo_xml)
-    brand_asset = ([float(v) for v in logo_xml.attrib["viewBox"].split()], paths)
+    outline = " ".join(p.attrib["d"] for p in logo_xml)
+    brand_asset = ([float(v) for v in logo_xml.attrib["viewBox"].split()], outline)
     for slug, board in json.loads((ROOT / "layouts.json").read_text()).items():
         export(slug, board, font, brand_asset)
 

@@ -1,6 +1,6 @@
 # Motor controller backplate markings
 
-One-color, 1:1 SVG artwork for the exposed face of each controller cover. The SVG page is the full plate or reference PCB footprint in millimetres. All marks are filled vectors, including the tscircuit icon and lettering.
+One-color, 1:1 SVG artwork for the exposed face of each controller cover. The SVG page is the full plate or reference PCB footprint in millimetres. All marks are filled vectors, including the tscircuit icon and lettering. DATA and PWR use transparent letterforms inside solid badges, and the logo has a transparent upper-left dot. Each plate shows `Control: motorcontrol.tscircuit.com`.
 
 ![Six backplate layouts with their mounting and connector clearances](proofs/overview.png)
 
@@ -23,7 +23,7 @@ The supplied legend uses the requested project wording. If selling as an evaluat
 
 ## Regenerate
 
-Edit [layouts.json](layouts.json) in millimetres from the board center, with positive Y toward the upper edge in the proof. Mount records give X, Y, drill diameter, and screw-head exclusion radius. Connector keepouts are `[minX, minY, maxX, maxY]`. A label record gives X, Y, target cap height, and an optional SVG rotation in degrees. The generator checks conservative bounds for every mark against the outline, four corner exclusions, screw-head envelopes, and connector keepouts.
+Edit [layouts.json](layouts.json) in millimetres from the board center, with positive Y toward the upper edge in the proof. Mount records give X, Y, drill diameter, and screw-head exclusion radius. Connector keepouts are `[minX, minY, maxX, maxY]`. A label record gives X, Y, target cap height, and an optional SVG rotation in degrees. The control line takes Y, target cap height, and an optional maximum width. The generator checks conservative bounds for every mark against the outline, four corner exclusions, screw-head envelopes, and connector keepouts.
 
 ```sh
 python -m pip install fonttools 'shapely>=2,<3'
