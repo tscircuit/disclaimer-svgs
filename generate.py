@@ -16,7 +16,7 @@ from shapely.ops import unary_union
 
 ROOT = Path(__file__).resolve().parent
 NOTICES = ("DEVELOPMENT USE ONLY", "NOT FCC APPROVED", "NOT FOR RESALE")
-CONTROL = "Control: motorcontrol.tscircuit.com"
+USAGE = "USAGE: motorcontrol.tscircuit.com"
 EDGE_CLEARANCE = 0.45
 FEATURE_CLEARANCE = 0.25
 
@@ -63,7 +63,7 @@ class Lettering:
         bounds = box(-w / 2, y - h / 2, w / 2, y + h / 2)
         letters = pen.getCommands()
         if knockout:
-            pad = max(.17, height * .11)
+            pad = max(.24, height * .15)
             badge = box(-w / 2 - 2 * pad, y - h / 2 - pad / 2,
                         w / 2 + 2 * pad, y + h / 2 + pad / 2)
             badge = badge.buffer(pad / 2, quad_segs=6)
@@ -128,6 +128,9 @@ def composition(board, lettering, brand_asset):
     else:
         marks.extend([translate(mark, x), translate(brand, x)])
 
+    usage_y, usage_height = settings["usage"]
+    marks.append(translate(lettering.run(USAGE, usage_y, usage_height, width, .015), x))
+
     y, h = settings["hazard"]
     marks.extend(pair(hazard(y, h * 1.22), lettering.run("DANGEROUS", y, h, width - h * 2), x, h * .36))
     marks.append(translate(lettering.run("USE AT YOUR OWN RISK", *settings["risk"], width, .054), x))
@@ -137,9 +140,6 @@ def composition(board, lettering, brand_asset):
         marks.append((path(polygon_path(line), "Divider"), line))
     marks.extend(translate(lettering.run(message, y, h, width), x)
                  for message, (y, h) in zip(NOTICES, settings["notices"]))
-    control_y, control_height, *control_width = settings["control"]
-    marks.append(translate(lettering.run(CONTROL, control_y, control_height,
-                                         control_width[0] if control_width else width, .015), x))
     return marks
 
 def export(slug, board, lettering, brand_asset):
