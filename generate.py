@@ -19,6 +19,7 @@ NOTICES = ("DEVELOPMENT USE ONLY", "NOT FCC APPROVED", "NOT FOR RESALE")
 USAGE = "USAGE: motorcontrol.tscircuit.com"
 EDGE_CLEARANCE = 0.45
 FEATURE_CLEARANCE = 0.25
+MARK_CLEARANCE = 0.25
 
 def mm(value):
     return f"{value:.5f}".rstrip("0").rstrip(".") if value else "0"
@@ -75,6 +76,13 @@ def translate(item, x):
     svg, bounds = item
     return f'<g transform="translate({mm(x)} 0)">{svg}</g>', move(bounds, xoff=x)
 
+def position(item, x, y, angle=0):
+    svg, bounds = translate(item, x)
+    if angle:
+        svg = f'<g transform="rotate({angle} {mm(x)} {mm(-y)})">{svg}</g>'
+        bounds = rotate(bounds, -angle, origin=(x, y))
+    return svg, bounds
+
 def logo(brand_asset, y, width):
     vb, outline = brand_asset
     w, h = vb[2:]
@@ -113,13 +121,8 @@ def composition(board, lettering, brand_asset):
     x, width = settings["center"], settings["width"]
     marks = []
     for name, (px, y, h, *angles) in board["labels"].items():
-        label = translate(lettering.run(name, y, h, 7.8, .10, knockout=True), px)
-        if angles:
-            svg, bounds = label
-            angle = angles[0]
-            label = (f'<g transform="rotate({angle} {mm(px)} {mm(-y)})">{svg}</g>',
-                     rotate(bounds, -angle, origin=(px, y)))
-        marks.append(label)
+        label = lettering.run(name, y, h, 7.8, .10, knockout=True)
+        marks.append(position(label, px, y, *angles))
     brand = lettering.run("Made by AI with tscircuit", *settings["brand"],
                           width - 2.6 if settings.get("inline_brand") else width, .015)
     mark = logo(brand_asset, *settings["logo"])
@@ -128,8 +131,10 @@ def composition(board, lettering, brand_asset):
     else:
         marks.extend([translate(mark, x), translate(brand, x)])
 
-    usage_y, usage_height = settings["usage"]
-    marks.append(translate(lettering.run(USAGE, usage_y, usage_height, width, .015), x))
+    usage = settings["usage"]
+    usage_y = usage["y"]
+    line = lettering.run(USAGE, usage_y, usage["height"], usage.get("width", width), .015)
+    marks.append(position(line, usage.get("x", x), usage_y, usage.get("angle", 0)))
 
     y, h = settings["hazard"]
     marks.extend(pair(hazard(y, h * 1.22), lettering.run("DANGEROUS", y, h, width - h * 2), x, h * .36))
@@ -157,9 +162,10 @@ def export(slug, board, lettering, brand_asset):
     for i, (svg, bounds) in enumerate(marks):
         if not face.buffer(-EDGE_CLEARANCE).covers(bounds) or bounds.distance(features) < FEATURE_CLEARANCE:
             raise ValueError(f"{slug} clearance failure for mark {i}: {svg[:100]} ({bounds.distance(features):.3f} mm)")
-        for _, other in marks[:i]:
-            if bounds.intersection(other).area > 1e-6:
-                raise ValueError(f"{slug} overlapping marks: {svg[:100]}")
+        for previous, other in marks[:i]:
+            gap = bounds.distance(other)
+            if gap < MARK_CLEARANCE:
+                raise ValueError(f"{slug} marks only {gap:.3f} mm apart: {svg[:100]} and {previous[:100]}")
     ink = "\n".join(svg for svg, _ in marks)
     dims = f'width="{mm(w)}mm" height="{mm(h)}mm" viewBox="{mm(-w/2)} {mm(-h/2)} {mm(w)} {mm(h)}"'
     title = escape(f'{board["title"]} · {board["revision"]} · {board["basis"]}')
@@ -182,7 +188,8 @@ def export(slug, board, lettering, brand_asset):
     (ROOT / "proofs" / f"{slug}.svg").write_text(f'{root}\n{meta}\n{guides}\n<g fill="#111923">\n{ink}\n</g>\n</svg>\n')
     edge = min(face.boundary.distance(bounds) for _, bounds in marks)
     clearance = min(features.distance(bounds) for _, bounds in marks)
-    print(f"{slug:11} edge ≥ {edge:.2f} mm    keepouts ≥ {clearance:.2f} mm")
+    spacing = min(a.distance(b) for i, (_, a) in enumerate(marks) for _, b in marks[:i])
+    print(f"{slug:11} edge ≥ {edge:.2f} mm    keepouts ≥ {clearance:.2f} mm    marks ≥ {spacing:.2f} mm")
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
