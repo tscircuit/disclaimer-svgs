@@ -1,6 +1,6 @@
 # Motor controller backplate markings
 
-One-color, 1:1 SVG artwork for the exposed face of each controller cover. The SVG page is the full plate or reference PCB footprint in millimetres. All marks are filled vectors, including the tscircuit icon and lettering. DATA and PWR use transparent letterforms inside solid badges, and the logo has a transparent upper-left dot. Each plate shows `USAGE: motorcontrol.tscircuit.com`.
+One-color, 1:1 SVG artwork for the exposed face of each controller cover. The SVG page is the full plate or reference PCB footprint in millimetres. All marks are filled vectors, including the tscircuit icon and lettering. DATA and PWR use transparent letterforms inside solid badges, and the logo has a transparent upper-left dot. Each plate shows `USAGE: motorcontrol.tscircuit.com` and has an edge marking for the motor driver version.
 
 ![Five backplate layouts with their mounting and connector clearances](proofs/overview.png)
 
@@ -22,7 +22,7 @@ The supplied legend uses the requested project wording. If selling as an evaluat
 
 ## Regenerate
 
-Edit [layouts.json](layouts.json) in millimetres from the board center, with positive Y toward the upper edge in the proof. Mount records give X, Y, drill diameter, and screw-head exclusion radius. Connector keepouts are `[minX, minY, maxX, maxY]`. A label record gives X, Y, target cap height, and an optional SVG rotation in degrees. The usage line takes Y and target cap height, with optional X, maximum width, and SVG rotation. The generator checks conservative bounds for every mark against the outline, four corner exclusions, screw-head envelopes, and connector keepouts. It requires at least 0.25 mm between separate marks.
+Edit [layouts.json](layouts.json) in millimetres from the board center, with positive Y toward the upper edge in the proof. Mount records give X, Y, drill diameter, and screw-head exclusion radius. Connector keepouts are `[minX, minY, maxX, maxY]`. A label record gives X, Y, target cap height, and an optional SVG rotation in degrees. The usage line takes Y and target cap height, with optional X, maximum width, and SVG rotation. Replace `layout.version.text` for the matching board to swap the `v00.00.00` placeholder, then regenerate the artwork. The generator checks conservative bounds for every mark against the outline, four corner exclusions, screw-head envelopes, and connector keepouts. It requires at least 0.25 mm between separate marks.
 
 ```sh
 python -m pip install fonttools 'shapely>=2,<3'

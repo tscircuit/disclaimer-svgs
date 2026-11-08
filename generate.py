@@ -145,6 +145,9 @@ def composition(board, lettering, brand_asset):
         marks.append((path(polygon_path(line), "Divider"), line))
     marks.extend(translate(lettering.run(message, y, h, width), x)
                  for message, (y, h) in zip(NOTICES, settings["notices"]))
+    version = settings["version"]
+    line = lettering.run(version["text"], version["y"], version["height"], version.get("width", width), .04)
+    marks.append(position(line, version["x"], version["y"], version.get("angle", 0)))
     return marks
 
 def export(slug, board, lettering, brand_asset):
