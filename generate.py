@@ -123,18 +123,22 @@ def composition(board, lettering, brand_asset):
     for name, (px, y, h, *angles) in board["labels"].items():
         label = lettering.run(name, y, h, 7.8, .10, knockout=True)
         marks.append(position(label, px, y, *angles))
-    brand = lettering.run("Made by AI with tscircuit", *settings["brand"],
-                          width - 2.6 if settings.get("inline_brand") else width, .015)
-    mark = logo(brand_asset, *settings["logo"])
-    if settings.get("inline_brand"):
-        marks.extend(pair(mark, brand, x, .55))
-    else:
-        marks.extend([translate(mark, x), translate(brand, x)])
-
+    logo_y, logo_width = settings["logo"]
+    gap = max(.55, logo_width * .14)
+    column_width = settings["brand_width"] - logo_width - gap
+    brand = lettering.run("Made by AI with tscircuit", *settings["brand"], column_width, .015)
     usage = settings["usage"]
     usage_y = usage["y"]
-    line = lettering.run(USAGE, usage_y, usage["height"], usage.get("width", width), .015)
-    marks.append(position(line, usage.get("x", x), usage_y, usage.get("angle", 0)))
+    usage_separate = "x" in usage
+    usage_line = lettering.run(USAGE, usage_y, usage["height"], usage.get("width", column_width), .015)
+    column = [brand] if usage_separate else [brand, usage_line]
+    text_width = max(bounds.bounds[2] - bounds.bounds[0] for _, bounds in column)
+    left = settings.get("brand_x", x) - (logo_width + gap + text_width) / 2
+    marks.append(translate(logo(brand_asset, logo_y, logo_width), left + logo_width / 2))
+    text_left = left + logo_width + gap
+    marks.extend(translate(item, text_left - item[1].bounds[0]) for item in column)
+    if usage_separate:
+        marks.append(position(usage_line, usage["x"], usage_y, usage.get("angle", 0)))
 
     y, h = settings["hazard"]
     marks.extend(pair(hazard(y, h * 1.22), lettering.run("DANGEROUS", y, h, width - h * 2), x, h * .36))
